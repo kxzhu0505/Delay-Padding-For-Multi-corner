@@ -86,11 +86,5 @@ hold mode: bounded_hold_time ≤ y_k[(u,v)] ≤ T_CLK
 ## Contributing
 Contributions via Issues and Pull Requests are welcome.
 
-## License
-[Choose appropriate license]
 
-## Contact
-[Your contact information]
-
-## Acknowledgments
 Thanks to all developers who have contributed to this project.
