@@ -4,7 +4,7 @@ import sys
 from typing import Dict, List
 from core.graph_builder import TimingGraphBuilder
 from core.dual_decomposition import run_dual_delay_padding
-
+from core.cp_optimize import find_min_TCLK
 
 
 if __name__ == "__main__":
@@ -47,4 +47,12 @@ if __name__ == "__main__":
     corner_graphs = builder.graphs
     print(corner_graphs)
 
-    run_dual_delay_padding(corner_graphs, T_CLK=600)
+    # run_dual_delay_padding(corner_graphs, T_CLK=600)
+    TCLK_min, p_optimal, msg = find_min_TCLK(
+    corner_graphs,
+    TCLK_low=0.0,
+    TCLK_high=800,  # 需根据实际数据调整
+    epsilon=0.01,
+    max_iters=20
+    )
+    print(f"TCLK_min: {TCLK_min}, p_optimal: {p_optimal}, msg: {msg}")
