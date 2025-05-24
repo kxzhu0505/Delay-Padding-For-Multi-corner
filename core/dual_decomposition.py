@@ -1,277 +1,152 @@
-import math
-import numpy as np
 import networkx as nx
-from typing import Tuple
-from typing import Dict
-# from core.bf_solver import bellman_ford_solver
-from core.lp_solver import solve_subproblem_lp
-from core.utils import initialize_y_k, initialize_y_shared, initialize_lambda_k, check_convergence
+from collections import defaultdict
+from core.lp_solver import delay_padding_lp_solver
 
-def run_dual_delay_padding(corner_graphs: Dict[str, 'nx.DiGraph'], T_CLK: float, max_iter: int = 200, rho: float = 1):
-    # Step 1: 初始化每个角的 y^(k)
-    # setup analysis（longest delay path）
-    y_k_setup = initialize_y_k(corner_graphs, mode="setup")
+def run_dual_delay_padding(corner_graphs,TCLK, max_iter=100, tol=1e-3, alpha=0.1, beta=0.1):
+    """
+    多Corner Delay Padding优化函数，适配您的数据结构。
     
-    # hold analysis（shortest delay path）
-    y_k_hold = initialize_y_k(corner_graphs, mode="hold")
-    # print(f"y_k_setup: {y_k_setup}")
-    # print(f"y_k_hold: {y_k_hold}")
-
-    # # Step 2: 初始化共享 y
-    y_shared_setup = initialize_y_shared(y_k_setup)
-    y_shared_hold = initialize_y_shared(y_k_hold)
-
-    # print(f"y_shared_setup: {y_shared_setup}")
-    # print(f"y_shared_hold: {y_shared_hold}")
-
-    # # Step 3: 初始化 λ_k
-    lambda_k_setup = initialize_lambda_k(y_k_setup)
-    lambda_k_hold = initialize_lambda_k(y_k_hold)
-
-    # print(f"lambda_k_setup: {lambda_k_setup}")
-    # print(f"lambda_k_hold: {lambda_k_hold}")
-
-    T_LOW = 0.1
-    T_HIGH = T_CLK
-    for iteration in range(max_iter):
-        T_MID = (T_LOW + T_HIGH) / 2
-
-        print(f"\n🔍 Iteration {iteration}: Trying T_CLK = {T_MID:.4f}")
-        # Step 4: 进入主迭代
+    参数:
+        corner_graphs (dict): 多Corner时序图，格式为 {corner: nx.Graph}.
+        max_iter (int): 最大迭代次数.
+        tol (float): 收敛阈值.
+        alpha (float): 势能平滑项系数.
+        beta (float): Buffer插入惩罚系数.
     
-        # === Step 1: setup 模式下的 delay padding 求解 ===
-        print("🔧 Solving for SETUP mode...")
-        final_y_k_setup, final_y_shared_setup = dual_loop_solver_path_based(
-            y_k=y_k_setup,
-            y_shared=y_shared_setup,
-            lambda_k=lambda_k_setup,
-            corner_graphs=corner_graphs,
-            T_CLK=T_CLK,
-            mode="setup"
-        )
+    返回:
+        dict: 优化后的全局电势 {node: potential}.
+        bool: 是否收敛.
+        str: 错误信息.
+    """
+    # --------------------- 初始化 ---------------------
+    # 1. 提取所有节点和初始电势（初始化为0）
+    all_nodes = set()
+    for G in corner_graphs.values():
+        all_nodes.update(G.nodes())
+    p = defaultdict(float, {node: 0.0 for node in all_nodes})
 
-        # # === Step 2: hold 模式下的 delay padding 求解 ===
-        print("🔧 Solving for HOLD mode...")
-        final_y_k_hold, final_y_shared_hold = dual_loop_solver_path_based(
-            y_k=y_k_hold,
-            y_shared=y_shared_hold,
-            lambda_k=lambda_k_hold,
-            corner_graphs=corner_graphs,
-            T_CLK=T_CLK,
-            mode="hold"
-        )
+    # 2. 初始化对偶变量 lambda（均匀分配）
+    corners = list(corner_graphs.keys())
+    lambda_m = {corner: 1.0 / len(corners) for corner in corners}
 
-        # 延迟填充
-        setup_delay_patch = implement_delay_padding(final_y_shared_setup, corner_graphs["ss_asap7"], T_CLK)
-        hold_delay_patch = implement_delay_padding(final_y_shared_hold, corner_graphs["ff_asap7"], T_CLK)
+    # 3. 历史代价记录
+    prev_total_cost = float('inf')
 
-        # 验证延迟填充
-        valid_setup = verify_patched_timing(final_y_shared_setup, corner_graphs["ss_asap7"], setup_delay_patch, T_CLK)
-        valid_hold = verify_patched_timing(final_y_shared_hold, corner_graphs["ff_asap7"], hold_delay_patch, T_CLK)
+    # --------------------- 迭代优化 ---------------------
+    for iter in range(max_iter):
+        total_cost = 0.0
+        corner_costs = {}
+        negative_cycles_detected = []
 
-        if valid_setup and valid_hold:
-            T_HIGH = T_MID
-        else:
-            T_LOW = T_MID
+        # --------------------- 子问题求解（按Corner并行） ---------------------
+        for corner, G in corner_graphs.items():
+            # 1. 构建当前Corner的时序约束图（动态计算边权）
+            adj = defaultdict(list)
+            
+            # 遍历所有边，提取Setup和Hold约束
+            for u, v in G.edges():
+                edge_data = G.get_edge_data(u, v)
+                
+                # 处理Setup约束（假设delay_type="setup"）
+                setup_data = edge_data.get("setup_delay", {})
+                if setup_data:
+                    arrival = setup_data.get("arrival_time", 0)
+                    T_setup = setup_data.get("library_time", 0)
+                    # Setup约束：p[v] - p[u] <= T_setup - arrival
+                    weight = TCLK + T_setup - arrival - (p[v] - p[u])
+                    # print(f"Setup约束: {u} -> {v}, weight: {weight}")
+                    adj[u].append((v, weight))
+                
+                # 处理Hold约束（假设delay_type="hold"）
+                hold_data = edge_data.get("hold_delay", {})
+                if hold_data:
+                    arrival = hold_data.get("arrival_time", 0)
+                    T_hold = hold_data.get("library_time", 0)
+                    # Hold约束：p[v] - p[u] >= arrival - T_hold
+                    weight = arrival - T_hold + (p[v] - p[u])
+                    # print(f"Hold约束: {v} -> {u}, weight: {weight}")
+                    adj[v].append((u, weight))  # 反向边
+
+            # 2. 检测负环
+            has_negative_cycle, _ = bellman_ford_detect_negative_cycle(adj)
+            if has_negative_cycle:
+                negative_cycles_detected.append(corner)
+                corner_cost = float('inf')
+            else:
+                # 3. 计算调整代价（示例：Buffer数量 + 电势平滑）
+                buffer_cost = 0
+                for u, v in G.edges():
+                    delta_p = p[v] - p[u]
+                    buffer_cost += beta * max(0, delta_p)  # 假设Buffer数量与delta_p正相关
+                smooth_cost = alpha * sum((p[v] - p[u])**2 for u, v in G.edges())
+                corner_cost = smooth_cost + buffer_cost
+            
+            corner_costs[corner] = corner_cost
+            total_cost += lambda_m[corner] * corner_cost
+
+        # --------------------- 错误处理 ---------------------
+        if negative_cycles_detected:
+            return p, False, f"负环存在于Corners: {negative_cycles_detected}. 需减小Dij或增大TC."
+
+        # --------------------- 主问题更新 ---------------------没有检测到负环，delay padding问题成立。
+        # 1. 更新对偶变量 lambda（基于与平均值的比较）
+        avg_cost = sum(corner_costs.values()) / len(corners)
+        for corner in corners:
+            if corner_costs[corner] > avg_cost:
+                lambda_m[corner] *= 1.1  # 惩罚高代价
+            else:
+                lambda_m[corner] *= 0.9  # 奖励低代价
         
-        if abs(T_HIGH - T_LOW) < 1e-3:
-            print(f"\n✅ Converged. Returning T_CLK = {T_HIGH:.4f}")
-            return T_HIGH
+        # 归一化lambda
+        lambda_sum = sum(lambda_m.values())
+        for corner in corners:
+            lambda_m[corner] /= lambda_sum
 
-    print(f"\n⚠️ Did not converge. Returning conservative T_CLK = {T_HIGH:.4f}")
-    return T_HIGH
+        # 2. 更新全局电势 p LP求解
+        try:
+            p_optimal = delay_padding_lp_solver(corner_graphs = corner_graphs,T_clk = TCLK)
+            for node in all_nodes:
+                p[node] = p_optimal[node]
+        except Exception as e:
+            return p, False, f"LP求解失败: {e}"
+       
 
-def dual_loop_solver_path_based(
-    y_k: Dict[str, Dict[Tuple[str, str], float]],
-    y_shared: Dict[Tuple[str, str], float],
-    lambda_k: Dict[str, Dict[Tuple[str, str], float]],
-    corner_graphs: Dict[str, any],
-    T_CLK: float,
-    mode: str = "setup",
-    max_iter: int = 50,
-    rho: float = 1.0,
-    tol: float = 1e-3
-):
-    """
-    Dual decomposition solver (path-based LP version).
-    """
+        # --------------------- 收敛判断 ---------------------
+        if abs(prev_total_cost - total_cost) < tol:
+            return p, True, "收敛成功."
+        prev_total_cost = total_cost
+
+    return p, False, "达到最大迭代次数未收敛."
+
+def bellman_ford_detect_negative_cycle(adj):
+    """Bellman-Ford负环检测"""
+    nodes = list(adj.keys())
+    if not nodes:
+        return False, []
+    dist = {node: 0 for node in nodes}
+    predecessor = {node: None for node in nodes}
     
-    for it in range(max_iter):
-        print(f"\n🔁 Iteration {it} [{mode}]")
-
-        # 1. solve subproblem per corner
-        for corner in y_k:
-            try:
-                y_k[corner] = solve_subproblem_lp(T_CLK, corner, y_shared, lambda_k, corner_graphs[corner], mode=mode)
-            except RuntimeError as e:
-                print(str(e))
-                continue
-
-        # 2. update shared y
-        all_edges = set(edge for ck in y_k.values() for edge in ck)
-        new_y_shared = {
-            edge: sum(y_k[c][edge] for c in y_k if edge in y_k[c]) / len([c for c in y_k if edge in y_k[c]])
-            for edge in all_edges
-        }
-
-        # 3. check convergence
-        # diff = max(abs(new_y_shared[e] - y_shared[e]) for e in new_y_shared if e in y_shared)
-        # print(f"🔍 Max change in y_shared: {diff:.4f}")
-        # if diff < tol:
-        #     print("✅ Converged.")
-        #     return y_k, new_y_shared
-        if check_convergence(y_k, new_y_shared, y_shared):
-            return y_k, new_y_shared
-        
-
-        y_shared = new_y_shared
-
-        # method 1
-        # 4. update lambda_k
-        avg_deviation = {}
-        for edge in y_shared:
-            deviations = [y_k[corner][edge] - y_shared[edge] for corner in y_k]
-            avg_deviation[edge] = sum(map(abs, deviations)) / len(deviations)
-   
-        for corner in y_k:
-            for edge in y_k[corner]:
-                # 根据偏差大小动态调整rho
-                adaptive_rho = rho * (1.0 / (1.0 + avg_deviation[edge]))
-                delta = y_k[corner][edge] - y_shared[edge]
-                lambda_k[corner][edge] += adaptive_rho * delta
-        # 4. update lambda_k
-        # method 2
-        # for corner in y_k:
-        #     for edge in y_k[corner]:
-        #         lambda_k[corner][edge] += rho * (y_k[corner][edge] - y_shared[edge])
-        
-        #method 3
-        # for corner in y_k:
-        #     for edge in y_k[corner]:
-        #         # 归一化的更新
-        #         delta = (y_k[corner][edge] - y_shared[edge]) / max(abs(y_shared[edge]), 1.0)
-        #         lambda_k[corner][edge] += rho * delta
-
-
-    print("⚠️ Reached max iterations without convergence.")
-    return y_k, y_shared
-
-def check_convergence(y_k, new_y_shared, y_shared, tol=1e-3, rel_tol=1e-2):
-    # 1. 检查y_shared的变化
-    abs_diff = max(abs(new_y_shared[e] - y_shared[e]) for e in new_y_shared if e in y_shared)
-    rel_diff = max(
-        abs(new_y_shared[e] - y_shared[e]) / max(abs(y_shared[e]), 1.0)
-        for e in new_y_shared if e in y_shared
-    )
+    # Relax所有边 V-1 次
+    for _ in range(len(nodes) - 1):
+        for u in adj:
+            for v, w in adj[u]:
+                if dist[v] > dist[u] + w:
+                    dist[v] = dist[u] + w
+                    predecessor[v] = u
     
-    # 2. 检查所有corner是否都接近y_shared
-    corner_diff = max(
-        abs(y_k[corner][edge] - new_y_shared[edge]) / max(abs(new_y_shared[edge]), 1.0)
-        for corner in y_k
-        for edge in y_k[corner]
-    )
-    
-    # 打印详细的收敛信息
-    print(f"🔍 Absolute change in y_shared: {abs_diff:.4f}")
-    print(f"🔍 Relative change in y_shared: {rel_diff:.4f}")
-    print(f"🔍 Max corner deviation: {corner_diff:.4f}")
-    
-    # 同时满足三个条件才认为收敛
-    is_converged = (abs_diff < tol) and (rel_diff < rel_tol) and (corner_diff <= 0.1)
-    
-    if is_converged:
-        print("✅ Converged.")
-    
-    return is_converged
-
-
-def implement_delay_padding(y_shared: Dict[Tuple[str, str], float], 
-                            graph: nx.DiGraph,
-                            T_CLK: float,
-                            tol: float = 1e-3):
-    """
-    根据共享 delay（y_shared）与时钟周期，对图中的边插入必要的 delay 以满足 setup/hold。
-    """
-    delay_patch = {}  # {(u, v): delay_to_add}
-
-    for u, v in graph.edges():
-        y = y_shared.get((u, v), None)
-        if y is None:
-            continue  # skip if no y_shared for this edge
-
-        # Get setup & hold library constraints
-        setup_info = graph[u][v].get('setup_delay', {})
-        hold_info  = graph[u][v].get('hold_delay', {})
-        setup_time = setup_info.get('library_time', None)
-        hold_time  = hold_info.get('library_time', None)
-
-        if setup_time is None or hold_time is None:
-            continue  # skip if missing info
-
-        required_max = T_CLK + setup_time
-        required_min = max(hold_time, 0.0)
-
-        padding = 0.0
-
-        # Setup violation: arrival too late
-        if y > required_max:
-            pad = y - required_max
-            print(f"⚠️ Setup violation on edge {u}->{v}: arrival={y:.2f} > {required_max:.2f}, pad={pad:.2f}")
-            padding = max(padding, pad)
-
-        # Hold violation: arrival too early
-        if y < required_min:
-            pad = required_min - y
-            print(f"⚠️ Hold violation on edge {u}->{v}: arrival={y:.2f} < {required_min:.2f}, pad={pad:.2f}")
-            padding = max(padding, pad)
-
-        if padding > 0:
-            delay_patch[(u, v)] = padding
-
-    return delay_patch
-
-def verify_patched_timing(y_shared: Dict[Tuple[str, str], float],
-                          graph: nx.DiGraph,
-                          delay_patch: Dict[Tuple[str, str], float],
-                          T_CLK: float,
-                          tol: float = 1e-3) -> bool:
-    """
-    验证应用 delay patch 后，所有 setup/hold 约束是否满足
-    """
-    all_passed = True
-
-    for u, v in graph.edges():
-        y = y_shared.get((u, v), None)
-        if y is None:
-            continue
-
-        patch = delay_patch.get((u, v), 0.0)
-        y_patched = y - patch
-        # 注意这里是 + 还是 -
-
-        # 获取 library 约束
-        setup_time = graph[u][v]['setup_delay'].get('library_time', None)
-        hold_time  = graph[u][v]['hold_delay'].get('library_time', None)
-        if setup_time is None or hold_time is None:
-            continue
-
-        required_max = T_CLK + setup_time
-        required_min = hold_time
-
-        # 检查 setup violation
-        if y_patched > required_max:
-            print(f"❌ Setup FAIL: {u}->{v}, patched_y = {y_patched:.2f} > {required_max:.2f}")
-            all_passed = False
-
-        # 检查 hold violation
-        if y_patched < required_min:
-            print(f"❌ Hold FAIL: {u}->{v}, patched_y = {y_patched:.2f} < {required_min:.2f}")
-            all_passed = False
-
-    if all_passed:
-        print("✅ All timing constraints met after delay padding.")
-    else:
-        print("❌ Timing violations remain after delay padding.")
-    
-    return all_passed
-
+    # 检测负环
+    for u in adj:
+        for v, w in adj[u]:
+            if dist[v] > dist[u] + w:
+                # 回溯环路
+                cycle = []
+                current = v
+                for _ in range(len(nodes)):
+                    current = predecessor.get(current, None)
+                    if current is None:
+                        break
+                    cycle.append(current)
+                    if current == v:
+                        return True, cycle
+                return True, cycle
+    return False, []
