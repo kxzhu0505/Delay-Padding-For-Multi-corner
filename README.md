@@ -82,6 +82,3 @@ Info: Converged successfully.
 - This project leverages OpenSTA, networkx, scipy, and other open-source tools.
 - Example Liberty files are based on ASAP7.
 
----
-
-Feel free to further customize this README for your specific use case or to add more details!
