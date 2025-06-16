@@ -22,6 +22,21 @@
         <mxCell id="ZSYHWtCXuAIpbvNL-chi-7" value="&lt;font style=&quot;font-size: 18px;&quot;&gt;Delay Padding Solver&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
           <mxGeometry x="50" y="340" width="270" height="50" as="geometry" />
         </mxCell>
+        <mxCell id="ZSYHWtCXuAIpbvNL-chi-9" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="ZSYHWtCXuAIpbvNL-chi-8" target="ZSYHWtCXuAIpbvNL-chi-6">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="185" y="500" />
+              <mxPoint x="30" y="500" />
+              <mxPoint x="30" y="275" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="ZSYHWtCXuAIpbvNL-chi-8" value="&lt;span style=&quot;font-size: 18px;&quot;&gt;Increse T&lt;sub&gt;CP&lt;/sub&gt;&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="50" y="430" width="270" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="ZSYHWtCXuAIpbvNL-chi-10" value="&lt;font style=&quot;font-size: 18px;&quot;&gt;Feasible T&lt;sub&gt;CP&lt;/sub&gt;&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="380" y="380" width="130" height="40" as="geometry" />
+        </mxCell>
       </root>
     </mxGraphModel>
   </diagram>
