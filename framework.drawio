@@ -4,6 +4,12 @@
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
+        <mxCell id="ZSYHWtCXuAIpbvNL-chi-1" value="&lt;font style=&quot;font-size: 18px;&quot;&gt;Circuit Design&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="150" y="50" width="120" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="ZSYHWtCXuAIpbvNL-chi-2" value="&lt;font style=&quot;font-size: 18px;&quot;&gt;STA Tool&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="150" y="110" width="120" height="30" as="geometry" />
+        </mxCell>
       </root>
     </mxGraphModel>
   </diagram>
