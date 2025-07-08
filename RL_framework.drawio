@@ -162,10 +162,10 @@
         <mxCell id="c9L40mLW1L9G3w0719Kv-62" value="" style="shape=process;whiteSpace=wrap;html=1;backgroundOutline=1;strokeWidth=2;" vertex="1" parent="1">
           <mxGeometry x="310" y="760" width="148.25" height="95.25" as="geometry" />
         </mxCell>
-        <mxCell id="c9L40mLW1L9G3w0719Kv-64" value="&lt;b style=&quot;color: rgb(255, 255, 255); font-family: &amp;quot;Times New Roman&amp;quot;; font-size: 18px;&quot;&gt;RL Agent&lt;/b&gt;" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
-          <mxGeometry x="150" y="887.62" width="96.5" height="30" as="geometry" />
+        <mxCell id="c9L40mLW1L9G3w0719Kv-64" value="&lt;b style=&quot;color: rgb(255, 255, 255); font-family: &amp;quot;Times New Roman&amp;quot;; font-size: 18px;&quot;&gt;RL Environment&lt;/b&gt;" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="150" y="887.62" width="150" height="30" as="geometry" />
         </mxCell>
-        <mxCell id="c9L40mLW1L9G3w0719Kv-66" value="&lt;b style=&quot;color: rgb(255, 255, 255); font-family: &amp;quot;Times New Roman&amp;quot;; font-size: 18px;&quot;&gt;Logic Synthesis&amp;nbsp;&lt;/b&gt;&lt;b style=&quot;color: rgb(255, 255, 255); font-family: &amp;quot;Times New Roman&amp;quot;; background-color: initial; font-size: 18px;&quot;&gt;Environment&lt;/b&gt;" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
+        <mxCell id="c9L40mLW1L9G3w0719Kv-66" value="&lt;font style=&quot;color: rgb(0, 0, 0);&quot;&gt;&lt;b style=&quot;font-family: &amp;quot;Times New Roman&amp;quot;; font-size: 18px;&quot;&gt;Logic Synthesis&amp;nbsp;&lt;/b&gt;&lt;b style=&quot;font-family: &amp;quot;Times New Roman&amp;quot;; background-color: initial; font-size: 18px;&quot;&gt;Environment&lt;/b&gt;&lt;/font&gt;" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
           <mxGeometry x="400" y="540" width="300" height="30" as="geometry" />
         </mxCell>
       </root>
