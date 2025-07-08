@@ -594,6 +594,9 @@
         <mxCell id="CeHTARA1lCBHRkRAmur1-190" value="&lt;font style=&quot;color: rgb(0, 0, 0);&quot;&gt;&lt;span style=&quot;font-size: 15px;&quot;&gt;&lt;b style=&quot;&quot;&gt;Delay&lt;sub&gt;mux&lt;/sub&gt;(F = 1) &amp;lt; Delay&lt;sub&gt;mux&lt;/sub&gt;(F = N)&lt;/b&gt;&lt;/span&gt;&lt;/font&gt;" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
           <mxGeometry x="225" y="630" width="250" height="30" as="geometry" />
         </mxCell>
+        <mxCell id="CeHTARA1lCBHRkRAmur1-194" value="Combinational&lt;div&gt;Logic&lt;/div&gt;" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="14" y="495" width="100" height="30" as="geometry" />
+        </mxCell>
       </root>
     </mxGraphModel>
   </diagram>
