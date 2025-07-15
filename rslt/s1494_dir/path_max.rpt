@@ -1,0 +1,25 @@
+Startpoint: inst_762 (rising edge-triggered flip-flop clocked by clk)
+Endpoint: inst_765/D (internal pin)
+Path Group: unconstrained
+Path Type: max
+
+  Delay    Time   Description
+---------------------------------------------------------
+   0.00    0.00 ^ inst_762/CK (DFFR_X2)
+ 113.03  113.03 v inst_762/QN (DFFR_X2)
+   4.24  117.28 ^ inst_545/ZN (INV_X4)
+   5.04  122.32 v inst_552/ZN (INV_X4)
+  50.78  173.10 v inst_16/ZN (OR2_X2)
+  19.67  192.76 ^ inst_73/ZN (NOR2_X2)
+   8.27  201.03 v inst_80/ZN (NOR2_X2)
+  71.63  272.66 ^ inst_27/ZN (NOR4_X2)
+   8.91  281.57 v inst_106/ZN (NOR2_X2)
+   6.56  288.13 ^ inst_231/ZN (NAND2_X4)
+   6.30  294.43 v inst_480/ZN (NAND2_X2)
+   4.68  299.11 ^ inst_484/ZN (NAND2_X2)
+   0.00  299.11 ^ inst_765/D (DFFR_X1)
+         299.11   data arrival time
+---------------------------------------------------------
+(Path is unconstrained)
+
+
